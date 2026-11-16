@@ -78,6 +78,13 @@
       <div class="header-actions-bar">
         <div class="header-actions-left">
           <button type="button" id="toggleAllBtn" class="btn btn-tertiary" data-i18n="collapse_all_btn">Collapse All</button>
+          <label class="dads-switch" for="hideResolvedSwitch">
+            <input type="checkbox" id="hideResolvedSwitch" class="dads-switch-input" role="switch" aria-checked="false">
+            <span class="dads-switch-track" aria-hidden="true">
+              <span class="dads-switch-knob"></span>
+            </span>
+            <span class="dads-switch-label" data-i18n="hide_resolved_label">Hide Resolved</span>
+          </label>
         </div>
         <div class="header-actions-right">
           <button type="button" id="copyNoticeBtn" class="btn btn-secondary" data-i18n="copy_notice_btn">Copy Notice Text</button>
@@ -99,6 +106,9 @@
       <!-- Left Column: Agenda Cards -->
       <section id="agendaList" class="agenda-column" role="tabpanel" aria-labelledby="tabAgendaBtn" data-i18n-aria="agenda_list_aria" aria-label="Agenda List">
         <!-- Rendered dynamically by app.js -->
+        <p id="allResolvedNotice" class="all-resolved-notice" data-i18n="all_resolved_notice" hidden>
+          All agenda items are resolved. Turn off "Hide Resolved" to review them.
+        </p>
       </section>
 
       <!-- Right Column: AI Notes, User Notes, Proposed Agendas & Server Status -->

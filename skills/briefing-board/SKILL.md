@@ -67,7 +67,9 @@ python "<SKILL_DIR>/scripts/new_briefing.py" --input ./briefing_input.toml --top
 ユーザーから保存完了の通知を受けたら、対象セッションの `decision.toml` を読み込み、以下の決定木に従って処理します。
 
 > [!CAUTION]
-> **作業開始禁止ガード**: `decision_status` が `"DRAFT"` の場合、または `overall_action` が `"pending"` / `"revise_needed"` の場合、**いかなる実装・本番コード編集・Issue 起票も絶対に行ってはいけません。**
+> **作業開始・先走り禁止ガード**:
+> - `decision_status` が `"DRAFT"` の場合、または `overall_action` が `"pending"` / `"revise_needed"` の場合、**いかなる実装・本番コード編集・Issue 起票・`done/` への移動も絶対に行ってはいけません。**
+> - `decision_status == "COMPLETED"`（`approve` / `partial` / `cancel`）を受領したターンであっても、**ユーザーへ決定内容の要約と次ステップの確認質問を返すことのみを行い、同一ターン内で `--archive` 移動・タスク起票・実装・サーバー停止などの状態変更ツールを絶対に呼び出してはいけません。** 必ずユーザーの明示的な許可の返答を待ってから、次のターンで実行してください。
 
 ```text
 decision.toml を確認
@@ -87,16 +89,16 @@ decision.toml を確認
 
 ## Step 5: タスク化確認・アーカイブ・サーバー停止
 
-決定完了（`COMPLETED` かつ `approve` / `partial` / `cancel`）後、**独断で起票・実装せず**ユーザーへ以下を確認します：
+決定完了（`COMPLETED` かつ `approve` / `partial` / `cancel`）後、**独断で起票・実装・アーカイブせず**、まず確認のみのターンとしてユーザーへ以下を確認します（この確認ターンでは状態変更ツールを実行しないこと）：
 
 1. 決定事項を Issue やタスクとして起票するかどうか（`partial` の場合は承認分のみ対象）
 2. 起票する場合の方式・規律（GitHub Issues、ローカル Issue 等）
+3. セッションを `done/` へアーカイブし、サーバーを停止してよいか
 
-ユーザーの指示に従って確認・タスク化が完了したら、以下を実施します：
+ユーザーの明示的な許可と指示を受けて確認・タスク化が完了したら、以下を実施します：
 
-1. 対象セッションフォルダを `briefing-board/wip/` から `briefing-board/done/` へ移動する。
-2. カンバンポータルを再構築する：
+1. 専用コマンドで対象セッションを `briefing-board/wip/` から `briefing-board/done/` へ移動し、カンバンポータルを自動再構築する（`COMPLETED` かつ `approve`/`partial`/`cancel` でない場合は安全ガードによりブロックされます）：
    ```bash
-   python "<SKILL_DIR>/scripts/new_briefing.py" --rebuild-portal
+   python "<SKILL_DIR>/scripts/new_briefing.py" --archive <session-folder>
    ```
-3. **バックグラウンドサーバーを停止する**：`done/` への移動・ポータル再構築が完了したら（特に `wip/` に進行中セッションがなくなった場合）、バックグラウンドで常駐させていた `server.py` のタスク／プロセスを終了する（ポータルの停止ボタンまたは `POST /api/shutdown` でも停止可能）。
+2. **バックグラウンドサーバーを停止する**：アーカイブ・ポータル再構築が完了したら（特に `wip/` に進行中セッションがなくなった場合）、バックグラウンドで常駐させていた `server.py` のタスク／プロセスを終了する（ポータルの停止ボタンまたは `POST /api/shutdown` でも停止可能）。

@@ -47,6 +47,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   const saveCompleteBtn = document.getElementById("saveCompleteBtn");
   const copyNoticeBtn = document.getElementById("copyNoticeBtn");
   const toggleAllBtn = document.getElementById("toggleAllBtn");
+  const hideResolvedSwitch = document.getElementById("hideResolvedSwitch");
+  const allResolvedNotice = document.getElementById("allResolvedNotice");
   const toastEl = document.getElementById("toast");
   const headerTitleEl = document.getElementById("headerTitle");
   const headerSubtitleEl = document.getElementById("headerSubtitle");
@@ -258,6 +260,40 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   };
 
+  // Resolved Card Helpers (Auto-collapse & Hide Resolved Switch)
+  const syncResolvedCardState = (card, action) => {
+    if (!card) return;
+    const isResolved = action === "approve" || action === "cancel";
+    card.classList.toggle("is-resolved", isResolved);
+    const chip = card.querySelector(".resolved-status-chip");
+    if (!chip) return;
+    chip.classList.remove("chip-approve", "chip-cancel");
+    if (isResolved) {
+      const i18nKey = action === "approve" ? "resolved_badge_approve" : "resolved_badge_cancel";
+      chip.classList.add(action === "approve" ? "chip-approve" : "chip-cancel");
+      chip.setAttribute("data-i18n", i18nKey);
+      chip.textContent = t(i18nKey);
+      chip.hidden = false;
+    } else {
+      chip.removeAttribute("data-i18n");
+      chip.textContent = "";
+      chip.hidden = true;
+    }
+  };
+
+  const updateResolvedVisibility = () => {
+    const hideResolved = Boolean(hideResolvedSwitch?.checked);
+    if (hideResolvedSwitch) {
+      hideResolvedSwitch.setAttribute("aria-checked", String(hideResolved));
+    }
+    agendaListEl.classList.toggle("hide-resolved", hideResolved);
+    if (allResolvedNotice) {
+      const cards = Array.from(agendaListEl.querySelectorAll(".agenda-card"));
+      const visibleCount = hideResolved ? cards.filter((c) => !c.classList.contains("is-resolved")).length : cards.length;
+      allResolvedNotice.hidden = !(hideResolved && cards.length > 0 && visibleCount === 0);
+    }
+  };
+
   // Render Agenda Cards
   const ACTION_VALUES = ["pending", "approve", "revise", "investigate", "cancel"];
 
@@ -273,6 +309,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     header.innerHTML = `
       <span class="card-header-title-wrap">
         <span class="domain-tag">${escapeHtml(item.domain)}</span>
+        <span class="resolved-status-chip" hidden></span>
         <span class="card-title">${escapeHtml(item.title)}</span>
       </span>
       <span class="toggle-icon" aria-hidden="true">▼</span>
@@ -374,10 +411,17 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (checkedInput.value !== "pending") {
           card.classList.remove("needs-attention");
         }
+        syncResolvedCardState(card, checkedInput.value);
       }
+      updateResolvedVisibility();
       updateSummaryStatus();
     };
     actionGroup.addEventListener("change", updateActivePill);
+    syncResolvedCardState(card, initialAction);
+    if (initialAction === "approve" || initialAction === "cancel") {
+      card.classList.add("collapsed");
+      header.setAttribute("aria-expanded", "false");
+    }
     body.appendChild(actionGroup);
 
     if (item.formula) {
@@ -555,6 +599,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
 
     updateServerStatusIndicator();
+    updateResolvedVisibility();
     updateSummaryStatus();
   };
 
@@ -626,6 +671,10 @@ document.addEventListener("DOMContentLoaded", async () => {
               radio.closest(".action-pill").classList.add("active");
             }
           }
+          syncResolvedCardState(card, d.action);
+          const isResolved = d.action === "approve" || d.action === "cancel";
+          card.classList.toggle("collapsed", isResolved);
+          card.querySelector(".card-header")?.setAttribute("aria-expanded", String(!isResolved));
         }
 
         if (Array.isArray(d.selected_options)) {
@@ -641,6 +690,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
       });
     }
+    updateResolvedVisibility();
     updateSummaryStatus();
   };
 
@@ -672,6 +722,13 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   await loadSettingsFromServer();
   await restorePreviousDecision();
+
+  // Hide Resolved Switch
+  if (hideResolvedSwitch) {
+    hideResolvedSwitch.addEventListener("change", () => {
+      updateResolvedVisibility();
+    });
+  }
 
   // Toggle All Cards Button
   if (toggleAllBtn) {
@@ -705,8 +762,10 @@ document.addEventListener("DOMContentLoaded", async () => {
           if (card && targetAction !== "pending") {
             card.classList.remove("needs-attention");
           }
+          syncResolvedCardState(card, targetAction);
         }
       });
+      updateResolvedVisibility();
       updateSummaryStatus();
       showToast(t("toast_bulk_applied", { action: t(`bulk_${targetAction}`) }));
     });
@@ -863,7 +922,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       } else if (overall === "revise_needed") {
         noticeText = `I completed this round of the briefing at ${filePath} (overall_action: revise_needed). Some items need revision or investigation — DO NOT start implementation yet. Please update the briefing agenda based on my feedback.`;
       } else {
-        noticeText = `I have completed the briefing decisions and saved them to ${filePath} (overall_action: ${overall}). Please review the decisions and ask for confirmation before proceeding.`;
+        noticeText = `I have completed the briefing decisions and saved them to ${filePath} (overall_action: ${overall}). Please summarize the decisions and ask for my explicit confirmation before archiving to done/, creating tasks, or starting implementation. Do NOT run archive or implementation commands in this turn.`;
       }
 
       navigator.clipboard.writeText(noticeText).then(() => {

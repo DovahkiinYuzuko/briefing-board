@@ -318,7 +318,8 @@ body {
 .header-actions-left {
   display: flex;
   align-items: center;
-  gap: 10px;
+  flex-wrap: wrap;
+  gap: 14px;
 }
 
 #toggleAllBtn {
@@ -614,6 +615,119 @@ body.view-mobile .action-selector-group .action-pill {
 
 .agenda-card.collapsed .card-body {
   display: none;
+}
+
+/* DADS Switch (Instant Filter Control, 44px+ Touch Target) */
+.dads-switch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 4px 8px;
+  cursor: pointer;
+  user-select: none;
+  border-radius: var(--dads-radius-sm);
+}
+
+.dads-switch-input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+}
+
+.dads-switch-track {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 48px;
+  height: 28px;
+  border-radius: 9999px;
+  background-color: #e5e5ea;
+  border: 2px solid var(--dads-color-border);
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+  flex-shrink: 0;
+}
+
+.dads-switch-knob {
+  position: absolute;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background-color: var(--dads-color-text-secondary);
+  transition: transform 0.15s ease, background-color 0.15s ease;
+}
+
+.dads-switch-input:checked + .dads-switch-track {
+  background-color: var(--dads-color-primary-light);
+  border-color: var(--dads-color-primary);
+}
+
+.dads-switch-input:checked + .dads-switch-track .dads-switch-knob {
+  transform: translateX(20px);
+  background-color: var(--dads-color-primary);
+}
+
+.dads-switch-input:focus-visible + .dads-switch-track {
+  outline: 4px solid var(--dads-focus-black);
+  box-shadow: 0 0 0 2px var(--dads-focus-yellow-300);
+}
+
+.dads-switch-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--dads-color-text-primary);
+  white-space: nowrap;
+}
+
+/* Resolved Agenda Cards & DADS Chip Labels (Text + Color) */
+.resolved-status-chip {
+  display: inline-block;
+  padding: 3px 10px;
+  font-size: 14px;
+  font-weight: 700;
+  border-radius: var(--dads-radius-sm);
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.resolved-status-chip.chip-approve {
+  background-color: var(--dads-pill-approve-bg);
+  border-color: var(--dads-pill-approve-border);
+  color: var(--dads-pill-approve-text);
+}
+
+.resolved-status-chip.chip-cancel {
+  background-color: var(--dads-pill-cancel-bg);
+  border-color: var(--dads-pill-cancel-border);
+  color: var(--dads-pill-cancel-text);
+}
+
+.agenda-card.is-resolved {
+  border-color: #b4b4b8;
+  background-color: #fafafa;
+}
+
+.agenda-card.is-resolved .card-header {
+  background-color: #f4f4f6;
+}
+
+#agendaList.hide-resolved .agenda-card.is-resolved {
+  display: none;
+}
+
+.all-resolved-notice {
+  padding: 20px 24px;
+  border: 1px dashed var(--dads-color-border);
+  border-radius: var(--dads-radius-md);
+  background-color: var(--dads-color-surface);
+  color: var(--dads-color-text-secondary);
+  font-size: 15px;
+  text-align: center;
+  margin: 0;
 }
 
 .card-body {

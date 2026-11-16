@@ -309,9 +309,61 @@ def build_kanban_portal(output_root: Path, resources_dir: Path, locales_dir: Pat
     print(f"  [SUCCESS] Updated DADS Kanban Portal at: {portal_file}", flush=True)
 
 
+def archive_session(session_arg: str, output_root: Path, resources_dir: Path, locales_dir: Path, skill_root: Path):
+    """Validate completion of a WIP session, move it to done/, and rebuild the Kanban portal."""
+    wip_root = (output_root / "wip").resolve()
+    done_root = (output_root / "done").resolve()
+
+    candidate = Path(session_arg)
+    session_dir = candidate.resolve() if candidate.is_dir() else (wip_root / session_arg).resolve()
+
+    if not session_dir.is_dir() or session_dir.parent != wip_root:
+        print(f"[ERROR] Session not found under wip/: {session_dir}", file=sys.stderr, flush=True)
+        sys.exit(1)
+
+    decision_path = session_dir / "decision.toml"
+    if not decision_path.is_file():
+        print(f"[ERROR] Cannot archive session without decision.toml: {decision_path}", file=sys.stderr, flush=True)
+        sys.exit(1)
+
+    try:
+        decision_data = tomllib.loads(decision_path.read_text(encoding="utf-8"))
+    except Exception as e:
+        print(f"[ERROR] Failed to parse decision.toml: {e}", file=sys.stderr, flush=True)
+        sys.exit(1)
+
+    decision_status = str(decision_data.get("decision_status", "")).upper()
+    overall_action = str(decision_data.get("overall_action", "")).lower()
+    allowed_actions = {"approve", "partial", "cancel"}
+
+    if decision_status != "COMPLETED" or overall_action not in allowed_actions:
+        print(
+            f"[ERROR] Cannot archive incomplete session '{session_dir.name}': "
+            f"decision_status='{decision_status}', overall_action='{overall_action}'. "
+            "Requires decision_status='COMPLETED' and overall_action in {approve, partial, cancel}.",
+            file=sys.stderr,
+            flush=True,
+        )
+        sys.exit(1)
+
+    done_root.mkdir(parents=True, exist_ok=True)
+    dest_dir = done_root / session_dir.name
+    if dest_dir.exists():
+        print(f"[ERROR] Destination already exists in done/: {dest_dir}", file=sys.stderr, flush=True)
+        sys.exit(1)
+
+    print(f"[1/2] Archiving completed session to done/: {dest_dir}", flush=True)
+    shutil.move(str(session_dir), str(dest_dir))
+
+    print("[2/2] Rebuilding DADS Kanban Portal...", flush=True)
+    build_kanban_portal(output_root, resources_dir, locales_dir, skill_root)
+    print(f"[SUCCESS] Archived '{session_dir.name}' and updated Kanban Portal.", flush=True)
+
+
 def main():
     parser = argparse.ArgumentParser(description="Generate Briefing Board Session Dashboard or Rebuild Kanban Portal")
     parser.add_argument("--rebuild-portal", action="store_true", help="Only rebuild Kanban portal (index.html) from existing sessions")
+    parser.add_argument("--archive", default=None, help="Archive a COMPLETED session from wip/ to done/ and rebuild Kanban portal")
     parser.add_argument("--input", "-i", default=None, help="Path to input briefing TOML/JSON file")
     parser.add_argument("--topic", "-t", default=None, help="Topic slug for session folder (e.g. loop-safety)")
     parser.add_argument("--title", default=None, help="Override title of the briefing")
@@ -333,6 +385,10 @@ def main():
     output_root = Path(args.output).resolve() if args.output else (Path.cwd() / "briefing-board").resolve()
     ensure_output_gitignore(output_root)
 
+    if args.archive:
+        archive_session(args.archive, output_root, resources_dir, locales_dir, skill_root)
+        return
+
     if args.rebuild_portal:
         print("[1/1] Rebuilding DADS Kanban Portal...", flush=True)
         try:
@@ -344,7 +400,7 @@ def main():
         return
 
     if not args.input:
-        parser.error("Either --input or --rebuild-portal must be specified.")
+        parser.error("Either --input, --archive, or --rebuild-portal must be specified.")
 
     print(f"[1/4] Loading and validating: {args.input}")
     try:

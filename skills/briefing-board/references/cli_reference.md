@@ -24,7 +24,8 @@ links:
 
 | 引数名 | 短縮形 | 型 | デフォルト値 | 必須 | 説明 |
 | :--- | :--- | :--- | :--- | :---: | :--- |
-| `--input` | `-i` | String (パス) | `None` | △ | 入力となる検討アジェンダ TOML/JSON ファイルへのパス。`--rebuild-portal` 指定時は省略可能。 |
+| `--input` | `-i` | String (パス) | `None` | △ | 入力となる検討アジェンダ TOML/JSON ファイルへのパス。`--archive` / `--rebuild-portal` 指定時は省略可能。 |
+| `--archive` | なし | String | `None` | △ | **安全なアーカイブ＆ポータル同期コマンド**。`wip/` 配下の指定セッションが `COMPLETED`（`approve` / `partial` / `cancel`）であることを検証し、`done/` へ移動してポータルを再構築します。 |
 | `--rebuild-portal` | なし | Flag | `False` | △ | **ポータル再生成専用フラグ**。既存の `wip/` および `done/` を走査して `briefing-board/index.html` のみを再ビルドします。 |
 | `--update-session` | なし | String | `None` | 任意 | 既存セッションフォルダ名またはパスを指定し、アセットと `briefing.toml` を上書き更新します（既存 `decision.toml` は `previousDecision` として引き継ぎます）。 |
 | `--topic` | `-t` | String | 入力ファイル名 | 任意 | 新規セッションフォルダ名に使用するトピック名スラッグ。 |
@@ -84,7 +85,12 @@ python "<SKILL_DIR>/scripts/new_briefing.py" --input ./briefing_input.toml --upd
 python "<SKILL_DIR>/scripts/server.py" --dir briefing-board
 ```
 
-### 4. アーカイブ後のポータル再ビルド
+### 4. 完了セッションの安全なアーカイブとポータル同期
+```bash
+python "<SKILL_DIR>/scripts/new_briefing.py" --archive 001-2026-11-17-loop-safety
+```
+
+### 5. ポータルのみの再ビルド
 ```bash
 python "<SKILL_DIR>/scripts/new_briefing.py" --rebuild-portal
 ```
