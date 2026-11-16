@@ -2,26 +2,26 @@
 *
 !.gitignore
 # ---AUTO-Generated---
-# .gitignores/locales.gitignore
-!locales/
-!locales/*.json
-# .gitignores/references.gitignore
-!references/
-!references/agenda_template.*
-!references/cli_reference.md
-!references/schema_specification.md
-# .gitignores/resources.gitignore
-!resources/
-!resources/app.js
-!resources/style.css
-!resources/index.html
-!resources/portal.html
 # .gitignores/root.gitignore
-!SKILL.md
+!plugin.json
 !README.md
 !README.*.md
 !LICENSE.*
 !NOTICE.md
-# .gitignores/scripts.gitignore
-!scripts/
-!scripts/*.py
+# .gitignores/skills.gitignore
+!skills/
+!skills/briefing-board/
+!skills/briefing-board/SKILL.md
+!skills/briefing-board/locales/
+!skills/briefing-board/locales/*.json
+!skills/briefing-board/references/
+!skills/briefing-board/references/agenda_template.*
+!skills/briefing-board/references/cli_reference.md
+!skills/briefing-board/references/schema_specification.md
+!skills/briefing-board/resources/
+!skills/briefing-board/resources/app.js
+!skills/briefing-board/resources/style.css
+!skills/briefing-board/resources/index.html
+!skills/briefing-board/resources/portal.html
+!skills/briefing-board/scripts/
+!skills/briefing-board/scripts/*.py

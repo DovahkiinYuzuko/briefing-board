@@ -1,0 +1,9 @@
+{
+  "name": "briefing-board",
+  "description": "Pre-implementation strategic briefing skill: builds a local interactive web dashboard and Kanban portal from TOML agendas and collects structured user decisions.",
+  "author": {
+    "name": "Yuzuko Underson",
+    "url": "https://github.com/DovahkiinYuzuko"
+  },
+  "repository": "https://github.com/DovahkiinYuzuko/briefing-board"
+}
