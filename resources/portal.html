@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Briefing Board Portal</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="container">
+    <header class="board-header">
+      <div class="header-top">
+        <div class="header-title-group">
+          <h1 data-i18n="portal_header_title">Briefing Board Portal</h1>
+          <p class="header-subtitle" data-i18n="portal_header_subtitle">Archive of active and completed briefing sessions</p>
+        </div>
+        <div class="header-controls">
+          <div class="lang-select-wrap">
+            <label for="langSelect" class="lang-select-label" data-i18n="lang_label">Language</label>
+            <select id="langSelect" class="dads-select lang-select" aria-label="Language"></select>
+          </div>
+          <div class="view-mode-selector" role="group" data-i18n-aria="view_mode_aria" aria-label="View Mode">
+            <button type="button" class="view-mode-btn active" id="btnModeAuto" data-mode="auto" data-i18n="mode_auto">Auto</button>
+            <button type="button" class="view-mode-btn" id="btnModeDesktop" data-mode="desktop" data-i18n="mode_desktop">Desktop</button>
+            <button type="button" class="view-mode-btn" id="btnModeMobile" data-mode="mobile" data-i18n="mode_mobile">Mobile</button>
+          </div>
+          <button type="button" id="shutdownServerBtn" class="btn btn-danger-outline" data-i18n="shutdown_server_btn">Stop Server</button>
+        </div>
+      </div>
+    </header>
+
+    <!-- DADS Table Control / Search & Sort Bar -->
+    <section class="portal-controls" data-i18n-aria="portal_controls_aria" aria-label="Session search and sort controls">
+      <div class="portal-search-row">
+        <label for="portalSearchInput" class="portal-control-label" data-i18n="portal_search_label">
+          Keyword Search
+        </label>
+        <p id="portalSearchSupport" class="portal-control-support" data-i18n="portal_search_support">Filter in real time by title, topic slug, or session number (e.g. loop, safety, tooling).</p>
+        <div class="portal-search-wrapper">
+          <input type="search" id="portalSearchInput" class="portal-search-input" aria-describedby="portalSearchSupport" autocomplete="off">
+          <button type="button" id="portalSearchClear" class="portal-btn-clear" data-i18n="portal_search_clear">Clear</button>
+        </div>
+      </div>
+
+      <div class="portal-filter-row">
+        <div class="portal-filter-left">
+          <div class="portal-control-label" data-i18n="portal_sort_label">Sort by:</div>
+          <div class="portal-btn-group" role="group">
+            <button type="button" class="portal-btn-segment active" data-sort="number" data-i18n="portal_sort_number">Number / Date</button>
+            <button type="button" class="portal-btn-segment" data-sort="title" data-i18n="portal_sort_title">Title</button>
+            <button type="button" class="portal-btn-segment" data-sort="status" data-i18n="portal_sort_status">Status</button>
+          </div>
+
+          <div class="portal-control-label" data-i18n="portal_order_label">Order:</div>
+          <div class="portal-btn-group" role="group">
+            <button type="button" class="portal-btn-segment active" data-order="desc" data-i18n="portal_order_desc">Desc ↓</button>
+            <button type="button" class="portal-btn-segment" data-order="asc" data-i18n="portal_order_asc">Asc ↑</button>
+          </div>
+        </div>
+
+        <div class="portal-counter-badge" id="portalCounterBadge" data-i18n="status_loading">
+          Loading...
+        </div>
+      </div>
+    </section>
+
+    <main class="kanban-board">
+      <section class="kanban-column" id="colWip">
+        <div class="kanban-column-header">
+          <h2 class="kanban-column-title">
+            <span data-i18n="portal_col_wip">In Progress (WIP)</span>
+            <span class="kanban-count-badge" id="badgeWipCount">{{WIP_COUNT}}</span>
+          </h2>
+        </div>
+        <div class="kanban-card-list" id="listWip">
+          {{WIP_CARDS}}
+        </div>
+      </section>
+
+      <section class="kanban-column" id="colDone">
+        <div class="kanban-column-header">
+          <h2 class="kanban-column-title">
+            <span data-i18n="portal_col_done">Completed (Done)</span>
+            <span class="kanban-count-badge" id="badgeDoneCount">{{DONE_COUNT}}</span>
+          </h2>
+        </div>
+        <div class="kanban-card-list" id="listDone">
+          {{DONE_CARDS}}
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="locales_data.js"></script>
+  <script>
+    (async function () {
+      const locales = window.BRIEFING_LOCALES || {};
+      const initialSettings = window.BRIEFING_INITIAL_SETTINGS || {};
+      const isHttpProtocol = window.location.protocol.startsWith("http");
+
+      const portalState = {
+        sort_key: "number",
+        sort_order: "desc",
+        search_query: "",
+        language: initialSettings.language || "en",
+        view_mode: initialSettings.view_mode || "auto"
+      };
+
+      function t(key, params) {
+        const langDict = locales[portalState.language] || {};
+        const enDict = locales.en || {};
+        let text = langDict[key] !== undefined ? langDict[key] : (enDict[key] !== undefined ? enDict[key] : key);
+        if (params && typeof text === "string") {
+          Object.keys(params).forEach((k) => {
+            text = text.replace(new RegExp(`\\{${k}\\}`, "g"), String(params[k]));
+          });
+        }
+        return text;
+      }
+
+      const toastEl = document.getElementById("toast");
+      let toastTimer = null;
+      function showToast(msg) {
+        if (!toastEl) return;
+        toastEl.textContent = msg;
+        toastEl.classList.add("show");
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => toastEl.classList.remove("show"), 4000);
+      }
+
+      async function persistSettings(partial) {
+        if (!isHttpProtocol) return;
+        try {
+          await fetch("/api/settings", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(partial)
+          });
+        } catch (e) {
+          console.warn("Failed to persist portal settings:", e);
+        }
+      }
+
+      let saveTimeout = null;
+      function scheduleSavePortalFilters() {
+        clearTimeout(saveTimeout);
+        saveTimeout = setTimeout(() => {
+          persistSettings({
+            sort_key: portalState.sort_key,
+            sort_order: portalState.sort_order,
+            search_query: portalState.search_query
+          });
+        }, 300);
+      }
+
+      const langSelect = document.getElementById("langSelect");
+      const searchInput = document.getElementById("portalSearchInput");
+      const searchClear = document.getElementById("portalSearchClear");
+      const sortButtons = document.querySelectorAll(".portal-btn-segment[data-sort]");
+      const orderButtons = document.querySelectorAll(".portal-btn-segment[data-order]");
+      const counterBadge = document.getElementById("portalCounterBadge");
+      const badgeWipCount = document.getElementById("badgeWipCount");
+      const badgeDoneCount = document.getElementById("badgeDoneCount");
+      const listWip = document.getElementById("listWip");
+      const listDone = document.getElementById("listDone");
+      const shutdownBtn = document.getElementById("shutdownServerBtn");
+
+      // Populate language dropdown dynamically from locales metadata
+      function populateLangOptions() {
+        if (!langSelect) return;
+        langSelect.innerHTML = "";
+        const codes = Object.keys(locales);
+        if (codes.length === 0) {
+          const opt = document.createElement("option");
+          opt.value = "en";
+          opt.textContent = "English";
+          langSelect.appendChild(opt);
+          return;
+        }
+        codes.forEach((code) => {
+          const opt = document.createElement("option");
+          opt.value = code;
+          opt.textContent = (locales[code]._meta && locales[code]._meta.label) || code.toUpperCase();
+          langSelect.appendChild(opt);
+        });
+        langSelect.value = locales[portalState.language] ? portalState.language : "en";
+      }
+
+      function applyPortalI18n() {
+        document.documentElement.lang = portalState.language;
+        document.title = t("portal_page_title");
+        document.querySelectorAll("[data-i18n]").forEach((el) => {
+          const key = el.getAttribute("data-i18n");
+          if (key) el.textContent = t(key);
+        });
+        document.querySelectorAll("[data-i18n-aria]").forEach((el) => {
+          const key = el.getAttribute("data-i18n-aria");
+          if (key) el.setAttribute("aria-label", t(key));
+        });
+        if (langSelect) {
+          langSelect.value = portalState.language;
+        }
+      }
+
+      function escapeRegExp(str) {
+        return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      }
+
+      function applyHighlight(element, rawText, query) {
+        if (!element) return;
+        if (!query) {
+          element.textContent = rawText;
+          return;
+        }
+        const regex = new RegExp(`(${escapeRegExp(query)})`, "gi");
+        const parts = rawText.split(regex);
+        element.innerHTML = "";
+        parts.forEach((part) => {
+          if (part.toLowerCase() === query.toLowerCase()) {
+            const mark = document.createElement("mark");
+            mark.className = "dads-highlight";
+            mark.textContent = part;
+            element.appendChild(mark);
+          } else {
+            element.appendChild(document.createTextNode(part));
+          }
+        });
+      }
+
+      function renderPortal() {
+        const query = portalState.search_query.trim().toLowerCase();
+        const sortKey = portalState.sort_key;
+        const isAsc = portalState.sort_order === "asc";
+
+        let totalCards = 0;
+        let visibleCards = 0;
+
+        [listWip, listDone].forEach((container) => {
+          const cards = Array.from(container.querySelectorAll(".kanban-session-card"));
+          totalCards += cards.length;
+
+          cards.forEach((card) => {
+            const searchData = card.getAttribute("data-search") || "";
+            const match = !query || searchData.includes(query);
+            card.style.display = match ? "" : "none";
+            if (match) visibleCards++;
+
+            const titleLink = card.querySelector(".kanban-card-title a");
+            const descEl = card.querySelector(".kanban-card-desc");
+
+            if (titleLink) {
+              if (!titleLink.hasAttribute("data-raw-text")) {
+                titleLink.setAttribute("data-raw-text", titleLink.textContent);
+              }
+              applyHighlight(titleLink, titleLink.getAttribute("data-raw-text"), query);
+            }
+
+            if (descEl) {
+              if (!descEl.hasAttribute("data-raw-text")) {
+                descEl.setAttribute("data-raw-text", descEl.textContent);
+              }
+              applyHighlight(descEl, descEl.getAttribute("data-raw-text"), query);
+            }
+          });
+
+          cards.sort((a, b) => {
+            let valA = "";
+            let valB = "";
+            if (sortKey === "title") {
+              valA = (a.getAttribute("data-title") || "").toLowerCase();
+              valB = (b.getAttribute("data-title") || "").toLowerCase();
+            } else if (sortKey === "status") {
+              valA = (a.getAttribute("data-status") || "").toLowerCase();
+              valB = (b.getAttribute("data-status") || "").toLowerCase();
+            } else {
+              valA = (a.getAttribute("data-folder") || "").toLowerCase();
+              valB = (b.getAttribute("data-folder") || "").toLowerCase();
+            }
+
+            if (valA < valB) return isAsc ? -1 : 1;
+            if (valA > valB) return isAsc ? 1 : -1;
+            return 0;
+          });
+
+          cards.forEach((card) => container.appendChild(card));
+        });
+
+        const countWipVisible = Array.from(listWip.querySelectorAll(".kanban-session-card")).filter((c) => c.style.display !== "none").length;
+        const countDoneVisible = Array.from(listDone.querySelectorAll(".kanban-session-card")).filter((c) => c.style.display !== "none").length;
+        badgeWipCount.textContent = countWipVisible;
+        badgeDoneCount.textContent = countDoneVisible;
+
+        counterBadge.textContent = query
+          ? t("portal_counter_filtered", { visible: visibleCards, total: totalCards })
+          : t("portal_counter_all", { total: totalCards });
+      }
+
+      const btnAuto = document.getElementById("btnModeAuto");
+      const btnDesktop = document.getElementById("btnModeDesktop");
+      const btnMobile = document.getElementById("btnModeMobile");
+
+      function setViewMode(mode, shouldPersist) {
+        portalState.view_mode = mode;
+        document.body.classList.remove("view-desktop", "view-mobile");
+        [btnAuto, btnDesktop, btnMobile].forEach((b) => b.classList.remove("active"));
+
+        if (mode === "desktop") {
+          document.body.classList.add("view-desktop");
+          btnDesktop.classList.add("active");
+        } else if (mode === "mobile") {
+          document.body.classList.add("view-mobile");
+          btnMobile.classList.add("active");
+        } else {
+          btnAuto.classList.add("active");
+        }
+        if (shouldPersist) {
+          persistSettings({ view_mode: mode });
+        }
+      }
+
+      btnAuto.addEventListener("click", () => setViewMode("auto", true));
+      btnDesktop.addEventListener("click", () => setViewMode("desktop", true));
+      btnMobile.addEventListener("click", () => setViewMode("mobile", true));
+
+      if (langSelect) {
+        langSelect.addEventListener("change", (e) => {
+          portalState.language = e.target.value;
+          applyPortalI18n();
+          renderPortal();
+          persistSettings({ language: portalState.language });
+        });
+      }
+
+      searchInput.addEventListener("input", (e) => {
+        portalState.search_query = e.target.value;
+        renderPortal();
+        scheduleSavePortalFilters();
+      });
+
+      searchClear.addEventListener("click", () => {
+        searchInput.value = "";
+        portalState.search_query = "";
+        renderPortal();
+        scheduleSavePortalFilters();
+        searchInput.focus();
+      });
+
+      sortButtons.forEach((btn) => {
+        btn.addEventListener("click", () => {
+          sortButtons.forEach((b) => b.classList.remove("active"));
+          btn.classList.add("active");
+          portalState.sort_key = btn.getAttribute("data-sort");
+          renderPortal();
+          scheduleSavePortalFilters();
+        });
+      });
+
+      orderButtons.forEach((btn) => {
+        btn.addEventListener("click", () => {
+          orderButtons.forEach((b) => b.classList.remove("active"));
+          btn.classList.add("active");
+          portalState.sort_order = btn.getAttribute("data-order");
+          renderPortal();
+          scheduleSavePortalFilters();
+        });
+      });
+
+      if (shutdownBtn) {
+        if (!isHttpProtocol) {
+          shutdownBtn.disabled = true;
+          shutdownBtn.title = t("shutdown_unavailable");
+        }
+        shutdownBtn.addEventListener("click", async () => {
+          if (!isHttpProtocol) {
+            showToast(t("shutdown_unavailable"));
+            return;
+          }
+          if (!window.confirm(t("shutdown_confirm"))) return;
+          try {
+            const resp = await fetch("/api/shutdown", { method: "POST" });
+            if (resp.ok) {
+              shutdownBtn.disabled = true;
+              showToast(t("shutdown_success"));
+            }
+          } catch (e) {
+            showToast(t("shutdown_success"));
+          }
+        });
+      }
+
+      async function initSettings() {
+        populateLangOptions();
+        if (isHttpProtocol) {
+          try {
+            const resp = await fetch("/api/settings");
+            if (resp.ok) {
+              const payload = await resp.json();
+              const loaded = payload.settings || {};
+              if (loaded.sort_key) portalState.sort_key = loaded.sort_key;
+              if (loaded.sort_order) portalState.sort_order = loaded.sort_order;
+              if (typeof loaded.search_query === "string") portalState.search_query = loaded.search_query;
+              if (loaded.language && locales[loaded.language]) portalState.language = loaded.language;
+              if (loaded.view_mode) portalState.view_mode = loaded.view_mode;
+            }
+          } catch (e) {
+            console.info("Using default portal settings.");
+          }
+        }
+
+        searchInput.value = portalState.search_query;
+        sortButtons.forEach((b) => {
+          b.classList.toggle("active", b.getAttribute("data-sort") === portalState.sort_key);
+        });
+        orderButtons.forEach((b) => {
+          b.classList.toggle("active", b.getAttribute("data-order") === portalState.sort_order);
+        });
+        setViewMode(portalState.view_mode, false);
+        applyPortalI18n();
+        renderPortal();
+      }
+
+      await initSettings();
+    })();
+  </script>
+</body>
+</html>

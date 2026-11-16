@@ -1,0 +1,71 @@
+# ==============================================================================
+# briefing-board 入力アジェンダ見本テンプレート (agenda_template.toml)
+# 詳細なスキーマ仕様は references/schema_specification.md を参照してください。
+# ==============================================================================
+
+project = "my-project"
+title = "アーキテクチャ方針決定ボード"
+subtitle = "実装前のアジェンダ検討とトレードオフの意思決定"
+ai_notes = """
+前提条件や検討上の補足事項をここに記述します（UI上では読み取り専用で表示されます）。
+ユーザーの自由メモ欄とは分離されています。
+"""
+
+[[agenda]]
+id = "architecture_choice"
+domain = "architecture"
+title = "1. 状態管理およびアーキテクチャ設計の選定"
+summary = "データフローと状態遷移の複雑化に対応するためのアプローチを選定します。"
+defaultAction = "pending"
+formula = 'S_{next} = \delta(S_{current}, \text{Event})'
+codeLang = "go"
+code = """
+type StateMachine struct {
+    current State
+}
+func (sm *StateMachine) Transition(ev Event) error {
+    return nil
+}
+"""
+optionsType = "radio"
+
+  [[agenda.options]]
+  id = "opt_fsm"
+  label = "【推奨】有限状態機械 (FSM) による明示的な状態遷移管理"
+  description = "状態爆発を防ぎ、テストカバレッジと追跡可能性を最大化します。"
+  recommended = true
+  defaultSelected = true
+
+  [[agenda.options]]
+  id = "opt_ad_hoc"
+  label = "フラグ変数によるシンプルな条件分岐"
+  description = "初期実装コストは低いですが、状態が増加した際の保守性に課題があります。"
+  recommended = false
+  defaultSelected = false
+
+[[agenda]]
+id = "error_handling_policy"
+domain = "reliability"
+title = "2. エラーハンドリングとリトライ戦略"
+summary = "ネットワーク障害や外部サービス呼び出し時のフォールバック方針を決定します。"
+defaultAction = "pending"
+optionsType = "checkbox"
+
+  [[agenda.history]]
+  round = 1
+  action = "revise"
+  comment = "サーキットブレーカーの閾値案も選択肢に追加してほしい。"
+
+  [[agenda.options]]
+  id = "opt_exp_backoff"
+  label = "指数バックオフ付きリトライ (Exponential Backoff with Jitter)"
+  description = "サーバー負荷を分散させつつ回復を試みます。"
+  recommended = true
+  defaultSelected = true
+
+  [[agenda.options]]
+  id = "opt_circuit_breaker"
+  label = "サーキットブレーカーの導入"
+  description = "連続失敗時に即座にフェイルセーフへ切り替えます。"
+  recommended = false
+  defaultSelected = false

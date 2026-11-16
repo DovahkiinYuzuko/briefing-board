@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Briefing Board</title>
+
+  <!-- Google Fonts: Noto Sans JP & Noto Sans Mono (DADS Standard) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700&family=Noto+Sans+Mono:wght@400;600&display=swap" rel="stylesheet">
+
+  <!-- KaTeX (LaTeX Math Rendering) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
+
+  <!-- Prism.js (Syntax Highlighting with Autoloader) -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-core.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+
+  <!-- DADS Core Stylesheet -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header class="board-header">
+      <nav class="portal-nav-bar" data-i18n-aria="portal_nav_aria" aria-label="Portal Navigation">
+        <a href="../../index.html" class="portal-back-link">
+          <span aria-hidden="true">&larr;</span>
+          <span data-i18n="portal_back_link">Back to Kanban Portal</span>
+        </a>
+      </nav>
+      <div class="header-top">
+        <div class="header-title-group">
+          <h1 id="headerTitle" data-i18n="board_page_title">Briefing Board</h1>
+          <p id="headerSubtitle" class="header-subtitle"></p>
+        </div>
+        <div class="header-controls">
+          <div class="lang-select-wrap">
+            <label for="langSelect" class="lang-select-label" data-i18n="lang_label">Language</label>
+            <select id="langSelect" class="dads-select lang-select" aria-label="Language"></select>
+          </div>
+          <!-- View Mode Selector (No Emojis, Pure Text) -->
+          <div class="view-mode-selector" role="group" data-i18n-aria="view_mode_aria" aria-label="View Mode">
+            <button type="button" class="view-mode-btn active" data-mode="auto" data-i18n="mode_auto">Auto</button>
+            <button type="button" class="view-mode-btn" data-mode="desktop" data-i18n="mode_desktop">Desktop</button>
+            <button type="button" class="view-mode-btn" data-mode="mobile" data-i18n="mode_mobile">Mobile</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Overall Status Summary & Bulk Action Shortcuts -->
+      <div class="overall-action-bar">
+        <div class="overall-status-row">
+          <span class="overall-action-label" data-i18n="overall_action_label">Overall Status (Auto):</span>
+          <span id="overallStatusBadge" class="domain-tag status-badge-wip" data-i18n="overall_pending">Pending Items (PENDING)</span>
+          <span id="statusBreakdown" class="status-breakdown-text" aria-live="polite" data-i18n="status_loading">Loading...</span>
+        </div>
+        <div class="bulk-action-row">
+          <label for="bulkActionSelect" class="bulk-action-label" data-i18n="bulk_action_label">Bulk Action:</label>
+          <div class="bulk-action-controls">
+            <select id="bulkActionSelect" class="dads-select">
+              <option value="approve" data-i18n="bulk_approve">Approve All</option>
+              <option value="revise" data-i18n="bulk_revise">Revise All</option>
+              <option value="investigate" data-i18n="bulk_investigate">Investigate All</option>
+              <option value="cancel" data-i18n="bulk_cancel">Cancel All</option>
+              <option value="pending" data-i18n="bulk_pending">Reset All to Pending</option>
+            </select>
+            <button type="button" id="applyBulkActionBtn" class="btn btn-secondary" data-i18n="apply_bulk_btn">Apply to All</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- DADS Action Bar: Left (Tertiary), Right (Secondary & Primary) -->
+      <div class="header-actions-bar">
+        <div class="header-actions-left">
+          <button type="button" id="toggleAllBtn" class="btn btn-tertiary" data-i18n="collapse_all_btn">Collapse All</button>
+        </div>
+        <div class="header-actions-right">
+          <button type="button" id="copyNoticeBtn" class="btn btn-secondary" data-i18n="copy_notice_btn">Copy Notice Text</button>
+          <button type="button" id="saveDraftBtn" class="btn btn-secondary" data-i18n="save_draft_btn">Save Draft (Continue)</button>
+          <button type="button" id="saveCompleteBtn" class="btn btn-primary" data-i18n="save_complete_btn">Save &amp; Complete</button>
+        </div>
+      </div>
+      <p id="completeErrorText" class="dads-error-text" hidden></p>
+    </header>
+
+    <!-- DADS Mobile Tab Navigation (Pure Text, No Emojis) -->
+    <nav class="mobile-tabs" role="tablist" data-i18n-aria="mobile_tabs_aria" aria-label="View Switcher">
+      <button type="button" class="dads-tab-btn active" role="tab" id="tabAgendaBtn" aria-selected="true" data-tab="agenda" data-i18n="tab_agenda">Agenda List</button>
+      <button type="button" class="dads-tab-btn" role="tab" id="tabNotesBtn" aria-selected="false" data-tab="notes" data-i18n="tab_notes">Notes &amp; Settings</button>
+    </nav>
+
+    <!-- Main 2-Column Responsive Layout -->
+    <main class="main-layout">
+      <!-- Left Column: Agenda Cards -->
+      <section id="agendaList" class="agenda-column" role="tabpanel" aria-labelledby="tabAgendaBtn" data-i18n-aria="agenda_list_aria" aria-label="Agenda List">
+        <!-- Rendered dynamically by app.js -->
+      </section>
+
+      <!-- Right Column: AI Notes, User Notes, Proposed Agendas & Server Status -->
+      <aside id="notesSidebar" class="sticky-sidebar" role="tabpanel" aria-labelledby="tabNotesBtn" data-i18n-aria="notes_sidebar_aria" aria-label="Notes and Status">
+        <!-- AI Prerequisite Notes (Read-Only) -->
+        <div id="aiNotesCard" class="notes-card ai-notes-card" style="display: none;">
+          <h2 data-i18n="ai_notes_title">AI Prerequisite Notes</h2>
+          <p class="notes-hint" data-i18n="ai_notes_hint">Context and prerequisite notes provided by AI (Read-only).</p>
+          <div id="aiNotesContent" class="ai-notes-content"></div>
+        </div>
+
+        <!-- User-Only Personal Notes -->
+        <div class="notes-card">
+          <h2><label for="scratchpadNotes" class="dads-field-label-heading" data-i18n="scratchpad_title">Personal Notes (User Only)</label></h2>
+          <p id="scratchpadNotesHint" class="notes-hint" data-i18n="scratchpad_hint">
+            Write any concerns, conditions, or instructions. Saved as global_notes.
+          </p>
+          <textarea id="scratchpadNotes" class="notes-textarea" aria-describedby="scratchpadNotesHint"></textarea>
+
+          <!-- Proposed Agendas (Free Agenda Requests in DADS Disclosure) -->
+          <details id="proposedAgendasDisclosure" class="proposed-agendas-section">
+            <summary class="proposed-summary">
+              <span data-i18n="proposed_summary">Proposed Agendas &amp; Questions</span>
+              <span id="proposedCountBadge" class="kanban-count-badge">0</span>
+            </summary>
+            <div class="proposed-disclosure-body">
+              <p class="notes-hint" data-i18n="proposed_hint">Register new topics or questions you want added in the next round.</p>
+              <div id="proposedAgendasList" class="proposed-agendas-list"></div>
+              <div class="proposed-agenda-inputs">
+                <div class="dads-form-field">
+                  <label for="newAgendaTitle" class="dads-field-label">
+                    <span data-i18n="proposed_title_label">Topic / Question Title</span>
+                    <span class="dads-requirement-label" data-i18n="required_mark">*Required</span>
+                  </label>
+                  <p id="newAgendaTitleHint" class="dads-support-text" data-i18n="proposed_title_hint">Enter a concise title (e.g. Cache strategy comparison).</p>
+                  <input type="text" id="newAgendaTitle" class="proposed-input" aria-describedby="newAgendaTitleHint">
+                </div>
+                <div class="dads-form-field">
+                  <label for="newAgendaDetail" class="dads-field-label">
+                    <span data-i18n="proposed_detail_label">Context / Details</span>
+                    <span class="dads-requirement-label" data-i18n="optional_mark">*Optional</span>
+                  </label>
+                  <p id="newAgendaDetailHint" class="dads-support-text" data-i18n="proposed_detail_hint">Describe any viewpoints or prerequisites to check.</p>
+                  <input type="text" id="newAgendaDetail" class="proposed-input" aria-describedby="newAgendaDetailHint">
+                </div>
+                <button type="button" id="addProposedAgendaBtn" class="btn btn-secondary" data-i18n="add_proposed_btn">Add Topic</button>
+              </div>
+            </div>
+          </details>
+
+          <!-- Server Status Indicator -->
+          <div class="server-status-bar">
+            <span id="serverStatusDot" class="status-dot"></span>
+            <span id="serverStatusText" data-i18n="server_checking">Checking save status...</span>
+          </div>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <!-- Notification Toast -->
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <!-- Localization Bundle, Agenda Data & Application Scripts -->
+  <script src="locales_data.js"></script>
+  <script src="briefing_data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

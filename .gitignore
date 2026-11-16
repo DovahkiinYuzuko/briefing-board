@@ -1,0 +1,26 @@
+# project:briefing-board
+*
+!.gitignore
+# ---AUTO-Generated---
+# .gitignores/locales.gitignore
+!locales/
+!locales/*.json
+# .gitignores/references.gitignore
+!references/
+!references/agenda_template.*
+!references/cli_reference.md
+!references/schema_specification.md
+# .gitignores/resources.gitignore
+!resources/
+!resources/app.js
+!resources/style.css
+!resources/index.html
+!resources/portal.html
+# .gitignores/root.gitignore
+!SKILL.md
+!README.md
+!LICENSE.*
+!NOTICE.md
+# .gitignores/scripts.gitignore
+!scripts/
+!scripts/*.py
