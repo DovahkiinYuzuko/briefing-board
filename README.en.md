@@ -8,28 +8,33 @@
 
 [日本語](./README.md) | [English](./README.en.md)
 
-An agent skill that puts AI-organized discussion topics and options onto a local web dashboard before implementation, letting you review and respond in a browser.
+An agent skill that organizes AI-prepared discussion topics, options, and comparison details onto a local web dashboard before implementation, letting you review and record decisions in a browser.
 
-Useful when design threads get buried in long chats or when you want to hold off implementation until every item is agreed on (for quick questions or small edits, regular chat is simpler).
+Suited for design discussions where threads get buried in long chats or when you want to hold off AI code changes and issue creation until every item is agreed on (for quick questions or small edits, regular chat is simpler).
+
+<p align="center">
+  <img src="./assets/board-en.png" alt="Briefing Board (Topic Review and Decisions)" width="100%" />
+</p>
 
 ## Contents
 
-- [Installation and Triggering](#installation-and-triggering)
-  - [Installation](#installation)
+- [Getting Started](#getting-started)
+  - [Requirements and Installation](#requirements-and-installation)
   - [Triggering](#triggering)
-- [How It Works](#how-it-works)
+- [Workflow](#workflow)
 - [Key Features](#key-features)
-- [Runtime Environment and Constraints](#runtime-environment-and-constraints)
+  - [Decision-Focused Board UI](#decision-focused-board-ui)
+  - [Pre-Approval Guard and Kanban Portal](#pre-approval-guard-and-kanban-portal)
+  - [Local-First Operational Design](#local-first-operational-design)
+- [Constraints and Design Trade-offs](#constraints-and-design-trade-offs)
 - [Internal Architecture and References](#internal-architecture-and-references)
-  - [Component Responsibilities](#component-responsibilities)
-  - [Reference Documents](#reference-documents)
 - [LICENSE](#license)
 
-## Installation and Triggering
+## Getting Started
 
-Requires Python 3.11 or higher (uses the standard library `tomllib`, so no external packages are needed).
+### Requirements and Installation
 
-### Installation
+Requires Python 3.11 or higher (uses standard library modules such as `tomllib`, so no external Python packages are needed).
 
 **With Agent Skills Compatible Tools**
 
@@ -45,50 +50,58 @@ agy plugin install https://github.com/DovahkiinYuzuko/briefing-board
 
 ### Triggering
 
-Start a session in chat using the slash command or a natural-language prompt:
+This repository is distributed as an Agent Skill (`skills/briefing-board/SKILL.md`). Start a session in a compatible agent chat by invoking the skill (e.g., `/briefing-board` depending on your environment) or using a natural-language prompt requesting a pre-implementation briefing:
 
 - `/briefing-board`
-- Phrases requesting a briefing or strategy session before implementation (such as "let's do a briefing", "open the briefing board", or "help me decide the approach").
+- Phrases such as "let's do a briefing", "open the briefing board", or "help me decide the approach"
 
 ---
 
-## How It Works
+## Workflow
 
-1. **Open the board**: Invoke the skill, and the AI organizes topics and options, starts the local server, and shares the URL (`http://localhost:<PORT>/wip/<session-folder>/`).
-2. **Review and save**: Pick a status per topic (Pending, Approve, Revise, Investigate, or Cancel), choose options, add comments or new topics if needed, and save.
-3. **Iterate on open items**: While saved as a draft or while any item is Pending, Revise, or Investigate, the AI holds off on implementation or issue creation and updates the board. You can hide resolved items with the "Hide Resolved" toggle.
-4. **Wrap up and archive**: Once everything is Approved or Cancelled, the AI confirms whether to create tasks or issues, moves the session to `done/`, and shuts down the server.
+1. **Organize topics and open the board**: When triggered, the AI structures discussion topics, options, and context into a TOML agenda, starts the local HTTP server, and shares the URL (`http://localhost:<PORT>/wip/<session-folder>/`).
+2. **Compare, decide, and save in the browser**: Pick a status per topic from five choices (`Pending`, `Approve`, `Revise`, `Investigate`, or `Cancel`), select options, add comments or new topic proposals if needed, and save.
+3. **Hold off implementation until open items are resolved**: While saved as a draft or while any topic remains `Pending`, `Revise`, or `Investigate`, the AI holds off on code implementation and issue creation, updating the board with your feedback.
+4. **Archive and wrap up after full agreement**: Once every topic is `Approve` or `Cancel`, the AI confirms whether to create tasks or issues, moves the session to `done/`, rebuilds the portal, and shuts down the server.
 
 ---
 
 ## Key Features
 
-- **Clean Git working tree**: Creates `briefing-board/.gitignore` (`*` and `!.gitignore`) on the first run so session files stay out of Git history.
-- **Per-project ports and LAN access**: The local server picks a dedicated port per project (`8899..8998`) and binds to `0.0.0.0`, making it accessible from phones or tablets on the same LAN.
-- **Multilingual UI and summary output**: Switch the display language from the header, and `summary.md` is generated in whichever language is active.
-- **Persistent settings**: UI language and view mode are shared across all projects, while portal sort order and search filters are kept per project.
+### Decision-Focused Board UI
+
+- **Five-status decisions and bulk controls**: Set each topic to `Pending`, `Approve`, `Revise`, `Investigate`, or `Cancel`, apply statuses in bulk, and filter the view with the "Hide Resolved" toggle or "Collapse All".
+- **Code, math, and notes side by side**: Display code snippets (syntax-highlighted), formulas (LaTeX), and AI notes per topic, while recording global user notes and proposing new topics on the same page.
+
+### Pre-Approval Guard and Kanban Portal
+
+- **Two-column WIP / Done portal**: The project root URL (`http://localhost:<PORT>/`) presents a Kanban view of in-progress (`wip/`) and archived (`done/`) sessions with live search, sorting, and a server shutdown button.
+- **Structured output and handoff**: Saving in the browser writes `decision.toml` and generates `summary.md` in the active UI language. A header button copies a ready-to-paste notice telling the AI that your review is complete.
+
+<p align="center">
+  <img src="./assets/portal-en.png" alt="Kanban Portal (Session Overview)" width="100%" />
+</p>
+
+### Local-First Operational Design
+
+- **Automatic `.gitignore` generation**: On the first session run, creates `.gitignore` (`*` and `!.gitignore`) inside the output directory so session files stay out of Git history.
+- **Per-project ports and LAN access**: Derives a dedicated port (`8899..8998`) from the CRC32 hash of the output directory and binds to `0.0.0.0`, allowing access from phones or tablets on the same LAN.
+- **Multilingual UI and scoped settings**: Switch between `日本語` and `English` and adjust view modes (`Auto`, `Desktop`, `Mobile`) from the header. UI language and view mode persist globally on the skill side, while portal sort order and search filters persist per project.
 
 ---
 
-## Runtime Environment and Constraints
+## Constraints and Design Trade-offs
 
-- **Offline fallback**: Math (KaTeX 0.16.8), syntax highlighting (Prism.js 1.29.0), and fonts (Google Fonts: Noto Sans JP / Noto Sans Mono) load from CDNs and fall back to plain text offline (option selection and saving still work).
-- **Opening via `file://`**: Even without a local server, you can open the HTML directly to view sessions and download `decision.toml`. Auto-save (`POST /api/save`), `summary.md` generation, and settings persistence (`/api/settings`) require the HTTP URL served by `server.py`.
-- **Static session list**: The portal (`briefing-board/index.html`) is rebuilt statically whenever sessions are created, updated, or archived. Run `new_briefing.py --rebuild-portal` only if you move session folders manually.
+- **Math and code rendering offline**: Math (KaTeX `0.16.8`), syntax highlighting (PrismJS `1.29.0`), and fonts (Google Fonts: `Noto Sans JP` / `Noto Sans Mono`) load from CDNs. This avoids external package managers and frontend build steps so the tool runs on the Python standard library alone; offline, those elements fall back to plain text while option selection and saving continue to work.
+- **Saving when opened via `file://`**: Opening the generated HTML files directly without a running server still supports viewing sessions and downloading `decision.toml`. Auto-saving to disk (`POST /api/save`), `summary.md` generation, and settings persistence (`/api/settings`) require accessing the board over the HTTP URL served by `server.py`.
+- **Static portal updates**: The Kanban portal (`briefing-board/index.html`) is rebuilt statically when sessions are created, updated, or archived. Normal usage keeps it up to date automatically; if you move session folders manually on disk, run `new_briefing.py --rebuild-portal` to refresh the list.
 
 ---
 
 ## Internal Architecture and References
 
 <details>
-<summary>Directory layout, implementation details, and specification links</summary>
-
-### Implementation Notes
-
-- **Port allocation**: Derived from the CRC32 hash of the output directory path in `8899..8998` (probing up to `+20` if already in use).
-- **Adding languages**: Place additional JSON locale files under `skills/briefing-board/locales/`.
-- **Settings storage**: UI language and view mode live in `skills/briefing-board/user_settings.json`; per-project portal sort/search state lives in `portal_settings.json`.
-- **Why CDNs and static asset copies**: Avoids external Python dependencies and frontend build steps, while keeping basic viewing and `decision.toml` export working even if a local server cannot start.
+<summary>Component responsibilities, implementation details, and specification links</summary>
 
 ### Component Responsibilities
 
@@ -96,17 +109,23 @@ Start a session in chat using the slash command or a natural-language prompt:
 | :--- | :--- |
 | `plugin.json` | Manifest definition for Antigravity plugin installation. |
 | `skills/briefing-board/SKILL.md` | Agent execution protocol (5-step workflow, decision tree, and pre-approval implementation guard). |
-| `skills/briefing-board/scripts/new_briefing.py` | Schema validation for input TOML/JSON, session creation and in-place updates (`--update-session`), validated archiving (`--archive <session-folder>`, server shutdown is separate), session list rebuilding (`--rebuild-portal`), and server startup orchestration. |
+| `skills/briefing-board/scripts/new_briefing.py` | Schema validation for input TOML/JSON, session creation and in-place updates (`--update-session`), validated archiving (`--archive <session-folder>`, server shutdown is separate), portal rebuilding (`--rebuild-portal`), and server startup orchestration. |
 | `skills/briefing-board/scripts/server.py` | Local HTTP server (`GET /api/decision`, `POST /api/save`, `GET/POST /api/settings`, `POST /api/shutdown`) and `summary.md` generation. |
 | `skills/briefing-board/scripts/briefing_common.py` | Shared utilities for TOML/JSON loading, deterministic port calculation, and reading/writing `user_settings.json` and `portal_settings.json`. |
-| `skills/briefing-board/resources/` | Frontend assets aligned with DADS design tokens (`index.html`, `portal.html`, `app.js`, `style.css`). |
+| `skills/briefing-board/resources/` | Frontend assets aligned with DADS (Digital Agency Design System) tokens (`index.html`, `portal.html`, `app.js`, `style.css`). |
 | `skills/briefing-board/locales/` | Localization bundles (`en.json`, `ja.json`). |
 | `skills/briefing-board/references/` | Schema specification, CLI reference, and agenda input template. |
+
+### Runtime Behavior and Settings
+
+- **Port allocation and probing**: Computes an initial port in `8899..8998` from the CRC32 hash of the output directory path and probes up to `+20` if the port is already in use.
+- **Settings storage**: UI language and view mode are stored in `skills/briefing-board/user_settings.json`, while per-project portal sort and search state are stored in `portal_settings.json` under the output directory.
+- **Adding languages**: Place additional JSON locale files named by language code under `skills/briefing-board/locales/` to extend UI language support.
 
 ### Reference Documents
 
 - Skill definition: [SKILL.md](./skills/briefing-board/SKILL.md)
-- CLI arguments and API endpoints (for development and verification): [cli_reference.md](./skills/briefing-board/references/cli_reference.md)
+- CLI arguments and HTTP API endpoints (for development and verification): [cli_reference.md](./skills/briefing-board/references/cli_reference.md)
 - Input/output TOML schema (`briefing.toml` / `decision.toml`): [schema_specification.md](./skills/briefing-board/references/schema_specification.md)
 - Input template: [agenda_template.toml](./skills/briefing-board/references/agenda_template.toml)
 
