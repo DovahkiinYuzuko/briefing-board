@@ -110,7 +110,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const aiNotesText = data.ai_notes || data.briefing_notes || data.initialPersonalNotes || "";
   if (aiNotesText.trim() && aiNotesCardEl && aiNotesContentEl) {
     aiNotesContentEl.textContent = aiNotesText.trim();
-    aiNotesCardEl.style.display = "block";
+    aiNotesCardEl.hidden = false;
   }
 
   const updateServerStatusIndicator = () => {
