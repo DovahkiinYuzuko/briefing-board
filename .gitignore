@@ -19,6 +19,7 @@
 # .gitignores/root.gitignore
 !SKILL.md
 !README.md
+!README.*.md
 !LICENSE.*
 !NOTICE.md
 # .gitignores/scripts.gitignore
