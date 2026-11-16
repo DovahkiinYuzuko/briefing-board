@@ -8,9 +8,9 @@
 
 [日本語](./README.md) | [English](./README.en.md)
 
-An agent skill that turns discussion topics and options organized by an AI agent into a local web dashboard before implementation, collecting your decisions and comments through a browser UI.
+An agent skill that puts AI-organized discussion topics and options onto a local web dashboard before implementation, letting you review and respond in a browser.
 
-It fits design or architecture discussions where long chat threads make topics hard to track or you want to hold off implementation until every item is agreed upon. For single-fact questions or straightforward edits, regular chat responses are faster.
+Useful when design threads get buried in long chats or when you want to hold off implementation until every item is agreed on (for quick questions or small edits, regular chat is simpler).
 
 ## Contents
 
@@ -27,11 +27,9 @@ It fits design or architecture discussions where long chat threads make topics h
 
 ## Installation and Triggering
 
-Python 3.11 or higher is required (uses the standard library `tomllib`, requiring no external Python packages).
+Requires Python 3.11 or higher (uses the standard library `tomllib`, so no external packages are needed).
 
 ### Installation
-
-Install with the command matching your environment:
 
 **With Agent Skills Compatible Tools**
 
@@ -47,7 +45,7 @@ agy plugin install https://github.com/DovahkiinYuzuko/briefing-board
 
 ### Triggering
 
-Invoke the skill in conversation with your agent using the slash command or natural-language phrases:
+Start a session in chat using the slash command or a natural-language prompt:
 
 - `/briefing-board`
 - Phrases requesting a briefing or strategy session before implementation (such as "let's do a briefing", "open the briefing board", or "help me decide the approach").
@@ -56,34 +54,41 @@ Invoke the skill in conversation with your agent using the slash command or natu
 
 ## How It Works
 
-1. **Start a Session**: When you invoke the skill, the AI agent organizes the discussion topics and options, starts the local server, and presents the dashboard URL (`http://localhost:<PORT>/wip/<session-folder>/`).
-2. **Review and Save in Browser**: Open the URL in your browser, select a decision per topic (Pending, Approve, Revise, Investigate, or Cancel) and choose options. Add comments or propose new topics as needed, then save.
-3. **Iterate on Open Items**: While saved as a draft or while any topic remains pending, marked for revision, or under investigation, the AI agent does not proceed with implementation or issue creation. It updates the board with answers or investigation results, and resolved items can be hidden with the "Hide Resolved" switch.
-4. **Complete and Archive**: Once all topics are approved or cancelled, the agent confirms whether to create tasks or issues, moves the session to `done/`, and stops the server.
+1. **Open the board**: Invoke the skill, and the AI organizes topics and options, starts the local server, and shares the URL (`http://localhost:<PORT>/wip/<session-folder>/`).
+2. **Review and save**: Pick a status per topic (Pending, Approve, Revise, Investigate, or Cancel), choose options, add comments or new topics if needed, and save.
+3. **Iterate on open items**: While saved as a draft or while any item is Pending, Revise, or Investigate, the AI holds off on implementation or issue creation and updates the board. You can hide resolved items with the "Hide Resolved" toggle.
+4. **Wrap up and archive**: Once everything is Approved or Cancelled, the AI confirms whether to create tasks or issues, moves the session to `done/`, and shuts down the server.
 
 ---
 
 ## Key Features
 
-- **Isolated Git Footprint**: On first generation of the output directory (`briefing-board/`), a `.gitignore` file containing `*` and `!.gitignore` is automatically created so session files do not pollute your repository's Git history.
-- **Deterministic Per-Project Ports and LAN Access**: A project-specific port in `8899..8998` is derived from the CRC32 hash of the output directory path (probing up to `+20` if occupied). Because the server binds to `0.0.0.0`, sessions can also be reviewed from smartphones or tablets on the same LAN.
-- **Multilingual UI and Summary Output**: Switch the display language from the header, and the `summary.md` generated on save matches the selected language. Japanese and English are included by default, and additional languages can be added by placing JSON files in `skills/briefing-board/locales/`.
-- **Settings Persistence**: UI language and view mode are saved globally across projects in `skills/briefing-board/user_settings.json`, while session list sort order and search queries are saved per project in `portal_settings.json`.
+- **Clean Git working tree**: Creates `briefing-board/.gitignore` (`*` and `!.gitignore`) on the first run so session files stay out of Git history.
+- **Per-project ports and LAN access**: The local server picks a dedicated port per project (`8899..8998`) and binds to `0.0.0.0`, making it accessible from phones or tablets on the same LAN.
+- **Multilingual UI and summary output**: Switch the display language from the header, and `summary.md` is generated in whichever language is active.
+- **Persistent settings**: UI language and view mode are shared across all projects, while portal sort order and search filters are kept per project.
 
 ---
 
 ## Runtime Environment and Constraints
 
-- **CDN Dependency for Math, Code Highlighting, and Fonts**: KaTeX (0.16.8), Prism.js (1.29.0), and Google Fonts (Noto Sans JP / Noto Sans Mono) are loaded via CDN. This choice keeps the repository free of external Python dependencies and frontend build steps. In offline environments, formulas and code blocks fall back to plain text, while option selection and saving continue to function.
-- **Limitations in `file://` Fallback Mode**: Static assets are copied into each session folder so the dashboard can still be viewed and `decision.toml` can be downloaded even when a local server cannot run. However, auto-saving (`POST /api/save`), `summary.md` generation, and settings persistence (`/api/settings`) do not work over `file://`; accessing the HTTP URL served by `server.py` enables those features.
-- **Static Session List Generation**: The session list (`briefing-board/index.html`) is built when sessions are created, updated, or archived. Because there is no background database or file-watcher daemon, `new_briefing.py --rebuild-portal` is only needed if session folders are moved manually.
+- **Offline fallback**: Math (KaTeX 0.16.8), syntax highlighting (Prism.js 1.29.0), and fonts (Google Fonts: Noto Sans JP / Noto Sans Mono) load from CDNs and fall back to plain text offline (option selection and saving still work).
+- **Opening via `file://`**: Even without a local server, you can open the HTML directly to view sessions and download `decision.toml`. Auto-save (`POST /api/save`), `summary.md` generation, and settings persistence (`/api/settings`) require the HTTP URL served by `server.py`.
+- **Static session list**: The portal (`briefing-board/index.html`) is rebuilt statically whenever sessions are created, updated, or archived. Run `new_briefing.py --rebuild-portal` only if you move session folders manually.
 
 ---
 
 ## Internal Architecture and References
 
 <details>
-<summary>Expand directory and script responsibilities and specification links</summary>
+<summary>Directory layout, implementation details, and specification links</summary>
+
+### Implementation Notes
+
+- **Port allocation**: Derived from the CRC32 hash of the output directory path in `8899..8998` (probing up to `+20` if already in use).
+- **Adding languages**: Place additional JSON locale files under `skills/briefing-board/locales/`.
+- **Settings storage**: UI language and view mode live in `skills/briefing-board/user_settings.json`; per-project portal sort/search state lives in `portal_settings.json`.
+- **Why CDNs and static asset copies**: Avoids external Python dependencies and frontend build steps, while keeping basic viewing and `decision.toml` export working even if a local server cannot start.
 
 ### Component Responsibilities
 
