@@ -2,6 +2,9 @@
 *
 !.gitignore
 # ---AUTO-Generated---
+# .gitignores/assets.gitignore
+!assets/
+!assets/*.png
 # .gitignores/root.gitignore
 !plugin.json
 !README.md
